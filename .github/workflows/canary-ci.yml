@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
       - name: Unit tests
         run: node --test test/*.test.js
       - name: Start two releases and proxy
@@ -32,9 +32,32 @@ jobs:
       - name: Promote and rollback
         run: |
           ./scripts/promote.sh green
-          curl -fsS http://127.0.0.1:8080/api/info | grep -q '"version":"v2"'
+
+          for i in $(seq 1 10); do
+            if curl -fsS http://127.0.0.1:8080/api/info | grep -q '"version":"v2"'; then
+              echo "Green v2 verificado correctamente"
+              break
+            fi
+            if [ "$i" -eq 10 ]; then
+              echo "ERROR: Green no responde con v2"
+              exit 1
+            fi
+            sleep 2
+          done
+
           ./scripts/promote.sh blue
-          curl -fsS http://127.0.0.1:8080/api/info | grep -q '"version":"v1"'
+
+          for i in $(seq 1 10); do
+            if curl -fsS http://127.0.0.1:8080/api/info | grep -q '"version":"v1"'; then
+              echo "Rollback a Blue v1 verificado correctamente"
+              break
+            fi
+            if [ "$i" -eq 10 ]; then
+              echo "ERROR: Blue no responde con v1"
+              exit 1
+            fi
+            sleep 2
+          done
       - name: Logs on failure
         if: failure()
         run: docker compose logs
